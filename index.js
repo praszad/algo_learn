@@ -6,6 +6,7 @@ const MNEMONICS =
   'patrol force swarm purse razor clock next issue erode install wear rack case coast differ silver unknown order film vintage giraffe unhappy top about ahead';
 const account = algosdk.mnemonicToSecretKey(MNEMONICS);
 const algoClient = clientConfig();
+let assetIndex = 211496026;
 
 function createAccount() {
   const account = algosdk.generateAccount();
@@ -31,8 +32,8 @@ async function createAsset() {
     decimals: 1,
     suggestedParams,
     defaultFrozen: false,
-    total: 1000000,
-    assetName: 'prz-test-01',
+    total: 10000,
+    assetName: 'prz-test-02',
     assetURL: 'https://testnet-api.algonode.cloud',
     clawback: account.addr,
     freeze: account.addr,
@@ -51,7 +52,6 @@ async function createAsset() {
 async function updateAsset() {
   const clawBackAccount = algosdk.mnemonicToSecretKey(addr2Mnemonic);
   console.log({ clawBackAccount });
-  let assetIndex = 211214092;
   let suggestedParams = await algoClient.getTransactionParams().do();
 
   const updtTxn = ak.makeAssetConfigTxnWithSuggestedParamsFromObject({
@@ -68,7 +68,43 @@ async function updateAsset() {
   console.log({ modifiedAsset });
 }
 
+async function optIn() {
+  const account2 = algosdk.mnemonicToSecretKey(addr2Mnemonic);
+  console.log({ account2 });
+  const suggestedParams = await algoClient.getTransactionParams().do();
+  console.log({ suggestedParams });
+  const optInTrx = ak.makeAssetTransferTxnWithSuggestedParamsFromObject({
+    from: account2.addr,
+    to: account2.addr,
+    suggestedParams,
+    assetIndex,
+    amount: 0
+  });
+  const signedOptInTrx = optInTrx.signTxn(account2.sk);
+  const { txId } = await algoClient.sendRawTransaction(signedOptInTrx).do();
+  const result = await ak.waitForConfirmation(algoClient, txId, 4);
+  console.log({ optIn: result });
+}
+async function assetTransfer() {
+  const account2 = algosdk.mnemonicToSecretKey(addr2Mnemonic);
+  const suggestedParams = await algoClient.getTransactionParams().do();
+  console.log({ suggestedParams });
+  const trsfTrx = ak.makeAssetTransferTxnWithSuggestedParamsFromObject({
+    from: account.addr,
+    to: account2.addr,
+    suggestedParams,
+    assetIndex,
+    amount: 50
+  });
+  const signedTransfer = trsfTrx.signTxn(account.sk);
+  const { txId } = await algoClient.sendRawTransaction(signedTransfer).do();
+  const result = await ak.waitForConfirmation(algoClient, txId, 8);
+  console.log({ result });
+}
 // Function to create asset
 // createAsset();
 
-updateAsset();
+// updateAsset();
+optIn().then(() => {
+  assetTransfer();
+});
